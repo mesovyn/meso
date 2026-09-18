@@ -1,5 +1,5 @@
 -- language: Luau | file: meso.lua | target: Roblox "Steal An Egg" (LocalScript / executor)
--- Boot prints at every milestone so silent failures are impossible.
+-- Full merged build: meso UI + anti-pushback + feature port from BobloUI hub.
 
 print("[meso] executed — script started")
 
@@ -11,7 +11,6 @@ local RunService       = game:GetService("RunService")
 local Workspace        = game:GetService("Workspace")
 local HttpService      = game:GetService("HttpService")
 local TeleportService  = game:GetService("TeleportService")
--- CoreGui / Lighting not used — removed (some executors error on GetService for these)
 
 local function svc(name)
     local ok, s = pcall(function() return game:GetService(name) end)
@@ -37,7 +36,6 @@ for _, name in ipairs({"MesoGui", "MesoEggChecker"}) do
     if e then e:Destroy() end
 end
 
--- ═══════════ CONFIG ═══════════
 local STEP_STUDS       = 12
 local STEP_HOLD        = 0.06
 local HOP_TIMEOUT      = 14
@@ -50,7 +48,6 @@ local AREA_RANK = {
     Forest=1,Lake=2,Desert=3,Jungle=4,Snow=5,Volcano=6,["Abyss Ocean"]=7,Prehistoric=8,Cosmic=9,
 }
 
--- ═══════════ REMOTES + LIBS ═══════════
 local Networking
 do
     local Packages = RS:FindFirstChild("Packages")
@@ -131,7 +128,6 @@ local TrailDir     = dir_of(TrailsData,     "Directory", "Trails", "Configs")
 local TreadmillDir = dir_of(TreadmillsData, "Directory", "Treadmills", "Configs", "Ordered")
 local AssetDir     = dir_of(AssetsDir,      "Directory", "Assets", "Items")
 
--- ═══════════ PALETTE ═══════════
 local BG       = Color3.fromRGB(18, 18, 22)
 local BG_TOP   = Color3.fromRGB(26, 26, 32)
 local BG_BODY  = Color3.fromRGB(22, 22, 27)
@@ -147,7 +143,6 @@ local GREEN    = Color3.fromRGB(80, 210, 120)
 local W, H = 540, 500
 local activeClose = nil
 
--- ═══════════ PET INDEX ═══════════
 local PET = {}
 local function index_pet_node(node)
     if type(node) ~= "table" then return end
@@ -259,7 +254,6 @@ local function egg_income(e)
     return base * mutation_multiplier(e)
 end
 
--- ═══════════ EGG STATE ═══════════
 local egg_state = {}
 local selected = {}
 local eggSort = "value"
@@ -361,7 +355,6 @@ local function pull_snapshot()
     state_dirty = true
 end
 
--- ═══════════ ANTI-PUSH-BACK ═══════════
 local STEAL_CF = nil
 local STEAL_HOLD = false
 
@@ -418,7 +411,6 @@ player.CharacterAdded:Connect(function()
     swapStealHumanoid()
 end)
 
--- ═══════════ POSITION HELPERS ═══════════
 local function alive()
     if KILLED then return false end
     local char = player.Character
@@ -514,7 +506,6 @@ local function corridor_entry()
     return currentPos()
 end
 
--- ═══════════ GUARDS ═══════════
 local function guard_root()
     local r = Workspace:FindFirstChild("__OBJECTS")
     r = r and r:FindFirstChild("Areas")
@@ -573,7 +564,6 @@ local function safe_stand(egg_pos, area)
     return best, bestd
 end
 
--- ═══════════ HOP ═══════════
 local function hop_to(toPos, stepStuds, holdSec)
     if KILLED then return false end
     local part = hrp()
@@ -628,7 +618,6 @@ local function hop_to(toPos, stepStuds, holdSec)
     return true
 end
 
--- ═══════════ NIGHT / SAVE / SCORING ═══════════
 local function isNight() return CYCLE.night end
 local function secondsToNight()
     if CYCLE.at > 0 then return math.max(0, CYCLE.at - Workspace:GetServerTimeNow()) end
@@ -738,7 +727,6 @@ local function pickBest()
     return best
 end
 
--- ═══════════ CARRY ═══════════
 local function wearTool(uid)
     if not R.wearTool then return end
     for _, shape in ipairs({ {Uid=uid}, {uid=uid}, {EggUid=uid}, uid }) do
@@ -766,7 +754,6 @@ local function carryEgg(uid, slotKey)
     return nil, last_err
 end
 
--- ═══════════ STEAL ═══════════
 local stealRunning = false
 local function stealSpecific(uid)
     if not R.carry then return false, "no carry" end
@@ -827,7 +814,6 @@ local function stealBest()
     return res
 end
 
--- ═══════════ PLANT / HATCH ═══════════
 local PLACE_SLOTS = {
     Vector3.new(0,1.15,0), Vector3.new(3,1.15,0), Vector3.new(-3,1.15,0),
     Vector3.new(0,1.15,3), Vector3.new(0,1.15,-3), Vector3.new(3,1.15,3),
@@ -915,7 +901,6 @@ local function trySkipGrowth()
     end
 end
 
--- forward decl
 local equipBestPets
 
 local function plotPulse()
@@ -929,7 +914,6 @@ local function plotPulse()
     if STATE.autoEquipBest and equipBestPets then equipBestPets() end
 end
 
--- ═══════════ PETS ═══════════
 local last_equip = 0
 equipBestPets = function()
     if os.clock() - last_equip < 6 then return false end
@@ -1008,7 +992,6 @@ local function runFuse()
     pcall(function() R.fuseBegin:InvokeServer() end)
 end
 
--- ═══════════ SHOP ═══════════
 local function bestOwnedTrail()
     local data = saveData()
     local owned = data.TrailInventory or {}
@@ -1034,12 +1017,12 @@ local function buyBestTrail()
     local data = saveData()
     local money = tonumber(data.Money) or 0
     local owned = data.TrailInventory or {}
-    local bestId, bestM, bestPrice
+    local bestId, bestM, _bestPrice
     for id, cfg in pairs(TrailDir) do
         if type(cfg) == "table" and tonumber(cfg.Price) and tonumber(cfg.SpeedMultiplier)
            and not owned[id] and cfg.Price <= money then
             if not bestM or cfg.SpeedMultiplier > bestM then
-                bestId, bestM, bestPrice = id, cfg.SpeedMultiplier, cfg.Price
+                bestId, bestM, _bestPrice = id, cfg.SpeedMultiplier, cfg.Price
             end
         end
     end
@@ -1076,7 +1059,6 @@ local function claimAway()
 end
 local function claimGroup() if R.groupClaim then pcall(function() R.groupClaim:InvokeServer(true) end) end end
 
--- ═══════════ TREADMILL ═══════════
 local TreadmillActive = false
 local function isDoubleSpeedVisible()
     local ok, v = pcall(function()
@@ -1105,7 +1087,6 @@ local function runTreadmill()
     TreadmillActive = true
 end
 
--- ═══════════ SERVER HOP ═══════════
 local Visited = (getgenv and getgenv().MesoHopHistory) or {}
 if getgenv then getgenv().MesoHopHistory = Visited end
 Visited[tostring(game.JobId)] = true
@@ -1161,7 +1142,6 @@ local function rejoin()
     end)
 end
 
--- ═══════════ WEBHOOK ═══════════
 local function httpPost(payload)
     local request = (syn and syn.request) or (http and http.request) or http_request or request
     if type(request) ~= "function" then return false end
@@ -1194,7 +1174,6 @@ local function sendSummary()
     })
 end
 
--- ═══════════ ESP ═══════════
 local EspFolder = Workspace:FindFirstChild("MesoEsp") or Instance.new("Folder")
 EspFolder.Name = "MesoEsp"
 EspFolder.Parent = Workspace
@@ -1293,7 +1272,6 @@ local function runEsp()
     end
 end
 
--- ═══════════ LIST OPTIONS ═══════════
 local NAMES = { "All" }
 do
     local seen = {}
@@ -1328,7 +1306,6 @@ local HOP_MODES = { "No Matching Eggs", "Timed Interval", "After Steal Count" }
 
 print("[meso] building GUI…")
 
--- ═══════════ GUI ═══════════
 local gui = Instance.new("ScreenGui")
 gui.Name = "MesoGui"
 gui.ResetOnSpawn = false
@@ -1536,7 +1513,6 @@ bubbleBtn.MouseLeave:Connect(function()
     TweenService:Create(bubbleStroke, TweenInfo.new(0.15), {Color = ACCENT}):Play()
 end)
 
--- ═══════════ WIDGET HELPERS ═══════════
 local PAGE_Y = {}
 local function y(page, advance)
     local v = PAGE_Y[page] or 8
@@ -1898,7 +1874,6 @@ local function sectionHeader(parent, yPos, labelText)
     return yPos + 26
 end
 
--- ═══════════ TAB 1: AUTO STEAL ═══════════
 local p1 = tabPages[1]
 resetY(p1)
 makeToggle(p1, y(p1, 40), "Auto Steal", STATE.autoSteal, function(v) STATE.autoSteal = v end)
@@ -1917,7 +1892,6 @@ makeDropdown(p1, y(p1, 56), "Rarity",   RARITIES,  1, function(v) STATE.filterRa
 makeDropdown(p1, y(p1, 56), "Mutation", MUTATIONS, 1, function(v) STATE.filterMutation = v end)
 print("[meso] tab 1 built")
 
--- ═══════════ TAB 2: PLOT ═══════════
 local p2 = tabPages[2]
 resetY(p2)
 makeButton(p2, y(p2, 40), "Return to Base", function() task.spawn(function() hop_to(home_cf().Position, 18, 0.06) end) end)
@@ -1941,7 +1915,6 @@ makeButton(p2, y(p2, 40), "Raise Base Now", function() task.spawn(raiseBase) end
 makeButton(p2, y(p2, 40), "Raise Treadmill Now", function() task.spawn(raiseTreadmill) end)
 print("[meso] tab 2 built")
 
--- ═══════════ TAB 3: INDEX ═══════════
 local p3 = tabPages[3]
 resetY(p3)
 PAGE_Y[p3] = sectionHeader(p3, y(p3, 0), "Index / Rewards")
@@ -1951,7 +1924,6 @@ makeButton(p3, y(p3, 40), "Claim Offline Earnings", function() task.spawn(claimA
 makeButton(p3, y(p3, 40), "Claim Group Reward", function() task.spawn(claimGroup) end)
 print("[meso] tab 3 built")
 
--- ═══════════ TAB 4: PETS ═══════════
 local p4 = tabPages[4]
 resetY(p4)
 PAGE_Y[p4] = sectionHeader(p4, y(p4, 0), "Fusion")
@@ -1966,7 +1938,6 @@ makeButton(p4, y(p4, 40), "Sell Every Pet", function()
 end, DANGER)
 print("[meso] tab 4 built")
 
--- ═══════════ TAB 5: SHOP ═══════════
 local p5 = tabPages[5]
 resetY(p5)
 PAGE_Y[p5] = sectionHeader(p5, y(p5, 0), "Trails")
@@ -1976,7 +1947,6 @@ makeButton(p5, y(p5, 40), "Buy Best Trail", function() task.spawn(buyBestTrail) 
 makeButton(p5, y(p5, 40), "Wear Best Owned Trail", function() task.spawn(wearBestTrail) end)
 print("[meso] tab 5 built")
 
--- ═══════════ TAB 6: PLAYER ═══════════
 local p6 = tabPages[6]
 resetY(p6)
 PAGE_Y[p6] = sectionHeader(p6, y(p6, 0), "ESP")
@@ -2000,7 +1970,6 @@ end)
 makeSlider(p6, y(p6, 54), "Fly Speed", 10, 400, STATE.flySpeed, function(v) STATE.flySpeed = v end)
 print("[meso] tab 6 built")
 
--- ═══════════ TAB 7: SERVER ═══════════
 local p7 = tabPages[7]
 resetY(p7)
 makeToggle(p7, y(p7, 40), "Auto Server Hop", STATE.autoServerHop, function(v) STATE.autoServerHop = v end)
@@ -2016,7 +1985,6 @@ makeTextInput(p7, y(p7, 54), "Ping User ID", "123456789012345678", function(v) W
 makeButton(p7, y(p7, 40), "Send Summary Now", function() task.spawn(sendSummary) end)
 print("[meso] tab 7 built")
 
--- ═══════════ TAB 8: SETTINGS ═══════════
 local p8 = tabPages[8]
 resetY(p8)
 makeToggle(p8, y(p8, 40), "Anti-AFK", STATE.antiAfk, function(v) STATE.antiAfk = v end)
@@ -2029,7 +1997,6 @@ makeButton(p8, y(p8, 40), "Clear ESP", function() task.spawn(clearEsp) end)
 makeButton(p8, y(p8, 40), "Refresh Field Snapshot", function() task.spawn(pull_snapshot) end, DANGER)
 print("[meso] tab 8 built")
 
--- ═══════════ EGG CHECKER WINDOW ═══════════
 local eggGui = Instance.new("ScreenGui")
 eggGui.Name = "MesoEggChecker"
 eggGui.ResetOnSpawn = false
@@ -2262,8 +2229,7 @@ local function buildEggCard(order)
     return { frame=card, strip=strip, check=check, name=nameLbl, sub=subLbl, income=incomeLbl, store=uidStore }
 end
 
-local renderEggList
-renderEggList = function()
+local function renderEggList()
     local rows = {}
     for uid, e in pairs(egg_state) do
         local st = tostring(sf(e, "State") or "Slot")
@@ -2474,7 +2440,6 @@ end
 
 print("[meso] launching loops…")
 
--- ═══════════ LOOPS ═══════════
 local autoRunning = false
 local function autoLoop()
     if autoRunning then return end
@@ -2664,4 +2629,3 @@ task.spawn(function()
 end)
 
 print("[meso] ready — GUI on screen (F6 hides)")
-warn("[meso] if you don't see the window, check DisplayOrder or another hub is on top")
