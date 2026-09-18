@@ -1,5 +1,6 @@
 -- language: Luau | file: meso.lua | target: Roblox "Steal An Egg" (LocalScript / executor)
 -- Full merged build: meso UI + anti-pushback + feature port from BobloUI hub.
+-- v2: tab construction wrapped in do...end to reset Luau's 200-local scope limit.
 
 print("[meso] executed — script started")
 
@@ -1521,6 +1522,7 @@ local function y(page, advance)
 end
 local function resetY(page) PAGE_Y[page] = 8 end
 
+-- widget builders (each introduces 0-2 locals in this scope; safe)
 local function makeToggle(parent, yPos, labelText, default, onChanged)
     local row = Instance.new("Frame")
     row.Size = UDim2.new(1, -32, 0, 40)
@@ -1874,6 +1876,12 @@ local function sectionHeader(parent, yPos, labelText)
     return yPos + 26
 end
 
+-- ══════════ TAB CONSTRUCTION WRAPPED IN do...end ══════════
+-- Luau allows 200 locals per scope. All the tab code was pushing the main
+-- chunk over. Wrapping it in a block gives the tabs their own 200-local budget.
+
+do
+
 local p1 = tabPages[1]
 resetY(p1)
 makeToggle(p1, y(p1, 40), "Auto Steal", STATE.autoSteal, function(v) STATE.autoSteal = v end)
@@ -1996,6 +2004,9 @@ end)
 makeButton(p8, y(p8, 40), "Clear ESP", function() task.spawn(clearEsp) end)
 makeButton(p8, y(p8, 40), "Refresh Field Snapshot", function() task.spawn(pull_snapshot) end, DANGER)
 print("[meso] tab 8 built")
+
+end
+-- ══════════ END TAB SCOPE ══════════
 
 local eggGui = Instance.new("ScreenGui")
 eggGui.Name = "MesoEggChecker"
